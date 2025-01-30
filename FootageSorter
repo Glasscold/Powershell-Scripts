@@ -1,0 +1,62 @@
+# Script to sort extracted zipfolders into collated folders
+# 30 January 2025
+# Glasscold
+# This script is specifically written for when a large amount of footage and audio is downloaded from Google Drive.
+# Since Google Drive automatically compresses the downloads into zip folders, all these zip folders first needs to be extracted, then sorted back
+# into their correct folders.
+
+# ---------------------------------------------------------------------------------------------------------------------------------------------------
+# USAGE OF THIS SCRIPT
+# 1) Put all your folders that need sorting into the same folder
+# 2) Make sure they are all extracted. I recommend you use 7-zip or similar software to extract a bunch of zip files at once.
+# 3) Replace $rootDirectory value with your folders are located.
+# 4) Make sure that the folders you want to merge contain the string "drive-download".
+#    - If it does not, either change the folder names, or change the Filter value on line 25 to an applicable string.
+# 5) Finally, copy the entire script. Open a powershell session at the directory where your sortee folders are. Run the script.
+# Hope this helps someone else as well.
+# ---------------------------------------------------------------------------------------------------------------------------------------------------
+
+# START OF SCRIPT
+
+# Define the root directory where all the drive-download folders are located
+$rootDirectory = "C:\Path\To\Your\Root\Folder"   # CHANGE THIS VALUE
+
+# Create a centralized folder to hold all the merged subfolders
+$centralizedFolder = Join-Path -Path $rootDirectory -ChildPath "Centralized"
+if (-not (Test-Path -Path $centralizedFolder)) {
+    New-Item -Path $centralizedFolder -ItemType Directory
+}
+
+# Get all the drive-download folders
+$driveDownloadFolders = Get-ChildItem -Path $rootDirectory -Directory -Filter "drive-download*"
+
+# Loop through each drive-download folder
+foreach ($folder in $driveDownloadFolders) {
+    # Get all subfolders in the current drive-download folder
+    $subfolders = Get-ChildItem -Path $folder.FullName -Directory -Recurse
+
+    # Loop through each subfolder
+    foreach ($subfolder in $subfolders) {
+        # Calculate the relative path of the subfolder within the drive-download folder
+        $relativePath = $subfolder.FullName.Substring($folder.FullName.Length + 1)
+
+        # Define the destination path in the centralized folder
+        $destinationPath = Join-Path -Path $centralizedFolder -ChildPath $relativePath
+
+        # Create the destination subfolder if it doesn't exist
+        if (-not (Test-Path -Path $destinationPath)) {
+            New-Item -Path $destinationPath -ItemType Directory
+        }
+
+        # Copy all files from the subfolder to the destination subfolder
+        $files = Get-ChildItem -Path $subfolder.FullName -File
+        foreach ($file in $files) {
+            $fileDestinationPath = Join-Path -Path $destinationPath -ChildPath $file.Name
+            if (-not (Test-Path -Path $fileDestinationPath)) {
+                Copy-Item -Path $file.FullName -Destination $fileDestinationPath
+            }
+        }
+    }
+}
+
+Write-Host "All files and subfolders have been merged successfully!"
